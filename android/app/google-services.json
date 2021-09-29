@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "257444866722",
+    "project_id": "entrecousins",
+    "storage_bucket": "entrecousins.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:257444866722:android:7fb57b066a3d841efbc5fb",
+        "android_client_info": {
+          "package_name": "com.example.entre_cousins"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "257444866722-2te8alfvdo4so99vri7fm46ga4h638uh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAX-XbQGvWasWISJ88M19g3xwuse-bIG8I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "257444866722-2te8alfvdo4so99vri7fm46ga4h638uh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
