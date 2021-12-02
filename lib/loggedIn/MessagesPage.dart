@@ -15,6 +15,20 @@ class Messages extends StatefulWidget {
 }
 
 class _MessagesState extends State<Messages> {
+  @override
+  void initState() {
+    getUserInfo().whenComplete((){
+      databaseService.getChatRooms(Constants.myName).then((value) {
+        setState(() {
+          chatRoomsStream = value;
+        });
+        print('${Constants.myName} asdasdasd');
+      });
+    });
+    super.initState();
+    print('${Constants.myName} before getting chat rooms');
+  }
+
   DatabaseService databaseService = new DatabaseService();
   late Stream chatRoomsStream;
   getUserInfo() async {
@@ -26,25 +40,16 @@ class _MessagesState extends State<Messages> {
 
   }
 
-  @override
-  void initState() {
-    getUserInfo();
-    print('${Constants.myName} before getting chat rooms');
-    databaseService.getChatRooms(Constants.myName).then((value) {
-      setState(() {
-        chatRoomsStream = value;
-      });
-      print(Constants.myName);
-    });
-    super.initState();
 
-  }
+
   Widget chatRoomList() {
+
     return StreamBuilder(
         stream: chatRoomsStream,
         builder: (context, snapshot) {
           if (snapshot.hasData == true) {
             return ListView.builder(
+              reverse: true,
               shrinkWrap: true,
                 itemCount: (snapshot.data! as QuerySnapshot).docs.length,
                 itemBuilder: (context, index) {
@@ -59,7 +64,7 @@ class _MessagesState extends State<Messages> {
 
                 });
           } else
-            return CircularProgressIndicator();
+            return CircularProgressIndicator(color: Colors.greenAccent,);
         });
   }
 
@@ -114,7 +119,6 @@ class ChatRoomTile extends StatelessWidget {
             radius: 25,
           ),
           title: Text(username),
-          trailing: Text('00:00'),
         ),
       ),
     );

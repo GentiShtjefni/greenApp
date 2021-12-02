@@ -5,6 +5,7 @@ class SharedPreference{
   static String userLoggedIn = "loggedin";
   static String userNameKey = "usernamekey";
   static String userEmailKey = "useremailkey";
+  static String adressKey = "adresskey";
 
   Future <bool> saveUserName (String? getUserName) async{
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -31,6 +32,14 @@ class SharedPreference{
   Future<String?> getEmailId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString(userEmailKey);
+  }
+  Future <bool> saveAdress (String? adress) async{
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.setString(adressKey, adress!);
+  }
+  Future<String?> getadress() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(adressKey);
   }
 
 }

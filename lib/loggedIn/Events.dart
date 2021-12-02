@@ -1,3 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:entre_cousins/loggedIn/Event.dart';
+import 'package:entre_cousins/tools/DatabaseService.dart';
 import 'package:entre_cousins/tools/mainscreen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
@@ -11,69 +14,84 @@ class Events extends StatefulWidget {
 }
 
 class _EventsState extends State<Events> {
+  DatabaseService databaseService = new DatabaseService();
+  late Stream eventStream;
+
+  getEvents() {
+    databaseService.getEvents().then((value) {
+      setState(() {
+        eventStream = value;
+      });
+    });
+  }
+  @override
+  void initState() {
+    getEvents();
+    super.initState();
+  }
+
+  Widget eventList () {
+    return StreamBuilder(
+      stream: eventStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasData) {
+          return ListView.builder(
+            shrinkWrap: true,
+            physics: ScrollPhysics(),
+            itemCount: (snapshot.data! as QuerySnapshot).docs.length,
+            padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
+            itemBuilder: (BuildContext context, int index) {
+              return Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20.0, vertical: 5),
+                  child: EventTile(
+                    (snapshot.data! as QuerySnapshot)
+                        .docs[index]
+                        .get('email'),
+                    (snapshot.data! as QuerySnapshot)
+                        .docs[index]
+                        .get('description'),
+                    (snapshot.data! as QuerySnapshot)
+                        .docs[index]
+                        .get('titre'),
+                    (snapshot.data! as QuerySnapshot)
+                        .docs[index].id,
+                    (snapshot.data! as QuerySnapshot)
+                        .docs[index]
+                        .get('imageurl')[0],
+                  )
+              );
+            }
+          );
+        } else
+          return CircularProgressIndicator();
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return MainScreen(
         child: ListView(
           children: [
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(child: Text('Événements')),
+                  IconButton(
+                    icon: Icon(Icons.search),
+                    onPressed: (){
+                      Navigator.of(context).pushNamed('eventsearch');
+
+                    },
+                  )
+                ],
+              )
+            ),
             Container(
               margin: EdgeInsets.only(top: 0),
-              height: MediaQuery.of(context).size.height/1.35,
-              child: ListView.builder(
-                shrinkWrap: true,
-                physics: ScrollPhysics(),
-                itemCount: 20,
-                padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
-                itemBuilder: (BuildContext context, int index){
-                  if(index== 0){
-                    return Padding(padding: EdgeInsets.fromLTRB(30, 10, 25, 5),
-                      child: ListTile(
-                        title: Text('Événements', style: TextStyle(color: Colors.grey.shade700),),
-                        trailing: Icon(Icons.search),
-                      ),
-                    );
-                  }else return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 5),
-                    child: InkWell(
-                      onTap: (){
-                        Navigator.of(context).pushNamed('event');
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        child: Material(
-                          elevation: 8,
-                          color: Colors.white,
-                          child: Row(
-                            children: [
-                              Container(
-                                height: 100,
-                                width: 100,
-                                color: Colors.grey,
-                                child: Image(image: AssetImage('images/event.png'),color: Colors.white, height: 20, width: 20),
-                              ),
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Column(
-                                    children: [
-                                      Text("Nom de l'événement"),
-                                      Text('Lorem ipsum dolor sit'
-                                          'adipiscing elit, sed do'
-                                          'incididunt ut labore et'
-                                          'aliqua. Ut enim ad minim'
-                                          'nostrud exercitation...'),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
+              height: MediaQuery.of(context).size.height/1.55,
+              child: eventList(),
             ),
             Padding(
               padding: EdgeInsets.fromLTRB(25, 10, 25, 25),
@@ -104,5 +122,62 @@ class _EventsState extends State<Events> {
           ],
         ),
         currentIndex: 4);
+  }
+}
+
+class EventTile extends StatelessWidget {
+  final String name;
+  final String description;
+  final String email;
+  final String eventId;
+  final String imageurl;
+
+  EventTile(this.email, this.description, this.name, this.eventId, this.imageurl);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: InkWell(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder:
+                  (context)=> Event(eventId: eventId,)));
+            },
+            child: Container(
+              width: double.infinity,
+              child: Material(
+                elevation: 8,
+                color: Colors.white,
+                child: Row(
+                  children: [
+                    Container(
+                      height: 100,
+                      width: 100,
+                      color: Colors.grey,
+                      child: Image.network(imageurl, fit: BoxFit.fill,),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          children: [
+                            Text(name),
+                            Text(descriptionLength(description)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ));
+  }
+  String descriptionLength(String description){
+    if(description.length > 60){
+      return '${description.substring(0,59)}...';
+    }else return description;
   }
 }

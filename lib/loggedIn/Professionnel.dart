@@ -1,127 +1,225 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:entre_cousins/tools/DatabaseService.dart';
 import 'package:entre_cousins/tools/mainscreen.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-class Professionnel extends StatelessWidget {
-  const Professionnel({Key? key}) : super(key: key);
+class Professionnel extends StatefulWidget {
+  final String username;
 
+  Professionnel({required this.username});
+  @override
+  State<Professionnel> createState() => _ProfessionnelState();
+}
+
+class _ProfessionnelState extends State<Professionnel> {
+
+  late Stream profileStream;
+  DatabaseService dbs = DatabaseService();
+
+  bool hasPhoto = false;
+
+  hasProfilePhoto(String userId) {
+    FirebaseFirestore.instance
+        .collection("users")
+        .doc(userId)
+        .get()
+        .then((value) {
+      print(value["profileImage"]);
+      if (value["profileImage"] == "") {
+        print(value["profileImage"]);
+        setState(() {
+          hasPhoto = false;
+        });
+      } else {
+        setState(() {
+          hasPhoto = true;
+        });
+      }
+    });
+  }
+  getUserInfo() async {
+    dbs.checkUserName(widget.username).then((value) {
+      setState(() {
+        profileStream = value;
+      });
+    });
+  }
   @override
   Widget build(BuildContext context) {
     return MainScreen(
-      child: ListView(
-        children: [
-          Row(
-            children: [
-              IconButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  icon: Icon(Icons.arrow_back_ios)),
-            ],
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                margin: EdgeInsets.fromLTRB(30, 0, 10, 30),
-                color: Colors.grey,
-                child: Image(image: AssetImage('images/user.png'),height: 160,),
-              ),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: StreamBuilder(
+          stream: profileStream,
+          builder: (context, snapshot) {
+            if (snapshot.hasData == true) {
+              return ListView(
+                physics: ScrollPhysics(),
+                shrinkWrap: true,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 18.0),
-                    child: Text('Nom Prenom', style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),),
-                  ),
-                  Text('Professionnel', style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: Colors.grey),)
-                ],
-              ),
-            ],
-          ),
-          Container(
-            margin: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.greenAccent,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Icon(Icons.call),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text('0688181885', style: TextStyle(fontSize: 20),),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            margin: EdgeInsets.symmetric(horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.greenAccent,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Icon(Icons.email),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text('Email.gmail.com', style: TextStyle(fontSize: 20),),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            margin: EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Icon(Icons.message, color: Colors.white,),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text('Contact', style: TextStyle(fontSize: 20, color: Colors.white),),
-                ),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(left: 28.0),
-                child: CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.greenAccent,
-                  child: Icon(Icons.location_on, color: Colors.black,size: 35,),
-                ),
-              ),
-              Container(
-                margin: EdgeInsets.only(left: 9),
-                child: Text('Voir sur la carte', style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
-              )
-            ],
-          )
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Container(
+                        constraints: BoxConstraints(
+                          maxHeight: 200,
+                          maxWidth: 150,
+                        ),
+                        child: hasPhoto
+                            ? Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(30),
+                            child: Image(
+                              fit: BoxFit.fill,
+                              image: NetworkImage((snapshot.data! as QuerySnapshot)
+                                  .docs[0]
+                                  .get("profileImage")),
+                            ),
+                          ),
+                        )
+                            : Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Image(
+                            height: 100,
+                            width: 100,
+                            image: AssetImage('images/user.png'),
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                      Column(
+                        children: [
+                          Text('Modifier Photo',
+                              style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold)),
+                          OutlinedButton(
+                              autofocus: true,
+                              onPressed: (){
+                                hasProfilePhoto((snapshot.data! as QuerySnapshot).docs[0].id);
 
-        ],
-      ),
-      currentIndex: 0,
-    );
+                              }, child: Text("Refresh")),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(25, 10, 25, 10),
+                    child: Container(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 18.0),
+                        child: Row(
+                          children: [
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Nom',
+                                    style: TextStyle(
+                                        color: Colors.black, fontSize: 19)),
+                                Text(
+                                    (snapshot.data! as QuerySnapshot)
+                                        .docs[0]
+                                        .get('nom'),
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 19)),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(25, 10, 25, 10),
+                    child: Container(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 18.0),
+                        child: Row(
+                          children: [
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('USERNAME',
+                                    style: TextStyle(
+                                        color: Colors.black, fontSize: 19)),
+                                Text(
+                                    (snapshot.data! as QuerySnapshot)
+                                        .docs[0]
+                                        .get('name'),
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 19)),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(25, 10, 25, 10),
+                    child: Container(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 18.0),
+                        child: Row(
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('EMAIL',
+                                    style: TextStyle(
+                                        color: Colors.black, fontSize: 19)),
+                                Text(
+                                    (snapshot.data! as QuerySnapshot)
+                                        .docs[0]
+                                        .get('email'),
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 19)),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(25, 10, 25, 10),
+                    child: Container(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 18.0),
+                        child: Row(
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Telephone',
+                                    style: TextStyle(
+                                        color: Colors.black, fontSize: 19)),
+                                Text(
+                                    (snapshot.data! as QuerySnapshot)
+                                        .docs[0]
+                                        .get('telephone'),
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 19)),
+                              ],
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            } else
+              return CircularProgressIndicator();
+          },
+        ),
+        currentIndex: 0);
   }
 }

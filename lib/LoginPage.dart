@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:entre_cousins/loggedIn/LocationClass.dart';
 import 'package:entre_cousins/loggedIn/homePage.dart';
 import 'package:entre_cousins/tools/DatabaseService.dart';
 import 'package:entre_cousins/tools/authentication_service.dart';
+import 'package:entre_cousins/tools/location_api.dart';
 import 'package:entre_cousins/tools/shared_preference.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -17,17 +20,49 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _newpasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _newemailController = TextEditingController();
   final TextEditingController _telephoneController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _userNameController = TextEditingController();
   late QuerySnapshot querySnapshot;
-
-  bool obsecureText = true;
+  bool loginError = false;
+  bool errorLoginDatabase = false;
+  String? errorSignUp = '';
+  bool correctPassword = true;
+  bool isUnique = false;
+  bool obSecureText = true;
   int indexLogin = 0;
+  bool isloading = false;
 
   DatabaseService databaseService = new DatabaseService();
   SharedPreference shp = new SharedPreference();
+  int? groupValuePro = 1;
+
+  void handleGroupValuePro(int? value2) {
+    setState(() {
+      groupValuePro = value2!;
+    });
+  }
+  String isAdmin = "";
+  checkAdmin() async{
+    await FirebaseFirestore.instance.collection("users")
+        .where("role", isEqualTo: "admin").where("email", isEqualTo: _emailController.text).get().then((value){
+
+             if(value.docs.isEmpty){
+               setState(() {
+
+             });
+             }else {
+               setState(() {
+                 isAdmin = "admin";
+               });
+             }
+
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,8 +146,16 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ],
                 ),
-                Container(
-                  height: 577,
+                isloading ? Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      backgroundColor: Colors.white,
+                      color: Colors.greenAccent,
+                    ),
+                  ),
+                ) : Container(
+                  height: correctPassword ? 1400 : 1400,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
@@ -188,6 +231,14 @@ class _LoginPageState extends State<LoginPage> {
                               ],
                             ),
                           ),
+                          Text(
+                            'Entrer une adresse email valide',
+                            style: TextStyle(
+                              color: loginError
+                                  ? Colors.red
+                                  : Colors.grey.shade100,
+                            ),
+                          ),
                           SizedBox(
                             height: 16,
                           ),
@@ -230,17 +281,25 @@ class _LoginPageState extends State<LoginPage> {
                                       border: InputBorder.none,
                                       hintText: 'Entrer votre mot de passe',
                                     ),
-                                    obscureText: obsecureText,
+                                    obscureText: obSecureText,
                                   ),
                                 ),
                                 IconButton(
                                     onPressed: () {
                                       setState(() {
-                                        obsecureText = !obsecureText;
+                                        obSecureText = !obSecureText;
                                       });
                                     },
                                     icon: Icon(Icons.visibility_off))
                               ],
+                            ),
+                          ),
+                          Text(
+                            'le mot de passe doit comporter 6 caractères',
+                            style: TextStyle(
+                              color: loginError
+                                  ? Colors.red
+                                  : Colors.grey.shade100,
                             ),
                           ),
                           Row(
@@ -258,6 +317,12 @@ class _LoginPageState extends State<LoginPage> {
                                       )))
                             ],
                           ),
+                          Text('email ou mot de passe incorrect',
+                              style: TextStyle(
+                                color: errorLoginDatabase
+                                    ? Colors.red
+                                    : Colors.grey.shade100,
+                              )),
                           Padding(
                             padding: EdgeInsets.fromLTRB(20, 20, 20, 5),
                             child: Container(
@@ -267,27 +332,67 @@ class _LoginPageState extends State<LoginPage> {
                                 borderRadius: BorderRadius.circular(25),
                               ),
                               child: TextButton(
-                                onPressed: () {
-                                  context.read<AuthenticationService>().signIn(
-                                        email: _emailController.text.trim(),
-                                        password:
-                                            _passwordController.text.trim(),
-                                      );
-                                  shp.saveEmail(_emailController.text);
-                                  databaseService.getUserByUserEmail(_emailController.text)
-                                      .then((val){
+                                onPressed: () async {
+                                  if (_emailController.text.isNotEmpty &&
+                                      _passwordController.text.length > 5) {
+                                    checkAdmin().whenComplete((){
+                                      if(isAdmin == "admin"){
+                                        context
+                                            .read<AuthenticationService>()
+                                            .signIn(
+                                          email: _emailController.text.trim(),
+                                          password:
+                                          _passwordController.text.trim(),
+                                        );
+                                        Navigator.of(context).pushReplacementNamed('admin');
+                                      }
+                                      else {
                                         setState(() {
-                                          querySnapshot = val;
+                                          isloading = true;
                                         });
-                                        shp.saveUserName(querySnapshot.docs[0].get('name'));
-                                        shp.saveUserLoggedIn(true);
-                                        print(querySnapshot.docs[0].get('name'));
-
-
-                                  });
-
+                                        context
+                                            .read<AuthenticationService>()
+                                            .signIn(
+                                          email: _emailController.text.trim(),
+                                          password:
+                                          _passwordController.text.trim(),
+                                        );
+                                        if (AuthenticationService()
+                                            .authStateChanges ==
+                                            User) {
+                                          shp.saveEmail(_emailController.text);
+                                          databaseService
+                                              .getUserByUserEmail(
+                                              _emailController.text)
+                                              .then((val) {
+                                            setState(() {
+                                              querySnapshot = val;
+                                            });
+                                            shp.saveUserName(
+                                                querySnapshot.docs[0].get('name'));
+                                            shp.saveUserLoggedIn(true);
+                                          });
+                                        } else {
+                                          setState(() {
+                                            errorLoginDatabase = true;
+                                            isloading = false;
+                                          });
+                                        }
+                                        Navigator.pushReplacement(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    HomePage()));
+                                      }
+                                    });
+                                  } else {
+                                    setState(() {
+                                      loginError = true;
+                                      isloading = false;
+                                    });
+                                  }
                                 },
-                                child: Text('Connectez-vouz',
+                                child: Text('Connectez-vous',
                                     style: TextStyle(color: Colors.black)),
                                 style: ButtonStyle(
                                   backgroundColor:
@@ -323,8 +428,16 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
-                Container(
-                  height: 669,
+                isloading ? Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      backgroundColor: Colors.white,
+                      color: Colors.greenAccent,
+                    ),
+                  ),
+                ) : Container(
+                  height: correctPassword ? 1400 : 1400,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
@@ -364,7 +477,7 @@ class _LoginPageState extends State<LoginPage> {
                               Padding(
                                 padding: const EdgeInsets.only(left: 15.0),
                                 child: Text(
-                                  'Name',
+                                  "Nom ",
                                   style: TextStyle(color: Colors.black),
                                 ),
                               ),
@@ -393,7 +506,52 @@ class _LoginPageState extends State<LoginPage> {
                                     controller: _nameController,
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
-                                      hintText: 'Entrer votre Pseudo',
+                                      hintText: 'Entrer votre nom',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            height: 16,
+                          ),
+                          Row(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 15.0),
+                                child: Text(
+                                  "Nom d'utilisateur",
+                                  style: TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              border:
+                              Border.all(color: Colors.grey, width: 1.0),
+                              color: Colors.white,
+                            ),
+                            margin: EdgeInsets.symmetric(
+                                horizontal: 15, vertical: 5),
+                            child: Row(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8.0),
+                                  child: Icon(
+                                    Icons.person,
+                                    color: Colors.greenAccent,
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _userNameController,
+                                    decoration: InputDecoration(
+                                      border: InputBorder.none,
+                                      hintText: "Entrez votre nom d'utilisateur",
+                                      errorText: isUnique ? "" : "Le nom d'utilisateur est pris",
                                     ),
                                   ),
                                 ),
@@ -492,6 +650,41 @@ class _LoginPageState extends State<LoginPage> {
                           SizedBox(
                             height: 16,
                           ),
+                          LocationClass(),
+                          SizedBox(
+                            height: 16,
+                          ),
+                          Row(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(left: 15.0),
+                                child: Text(
+                                  'Êtes-vous un professionnel?',
+                                  style: TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              Radio(
+                                value: 0,
+                                groupValue: groupValuePro,
+                                onChanged: handleGroupValuePro,
+                                activeColor: Colors.greenAccent,
+                              ),
+                              Text('Oui'),
+                              Radio(
+                                  value: 1,
+                                  groupValue: groupValuePro,
+                                  onChanged: handleGroupValuePro,
+                                  activeColor: Colors.greenAccent),
+                              Text('Non')
+                            ],
+                          ),
+                          SizedBox(
+                            height: 16,
+                          ),
                           Row(
                             children: [
                               Padding(
@@ -527,17 +720,20 @@ class _LoginPageState extends State<LoginPage> {
                                 Expanded(
                                   child: TextFormField(
                                     controller: _newpasswordController,
+                                    onSaved: (_){
+                                      getAdress();
+                                    },
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
                                       hintText: 'Entrer votre mot de passe',
                                     ),
-                                    obscureText: obsecureText,
+                                    obscureText: obSecureText,
                                   ),
                                 ),
                                 IconButton(
                                     onPressed: () {
                                       setState(() {
-                                        obsecureText = !obsecureText;
+                                        obSecureText = !obSecureText;
                                       });
                                     },
                                     icon: Icon(Icons.visibility_off))
@@ -581,29 +777,36 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 Expanded(
                                   child: TextFormField(
+                                    controller: _confirmPasswordController,
                                     decoration: InputDecoration(
                                       border: InputBorder.none,
+                                      errorText: correctPassword
+                                          ? null
+                                          : "veuillez entrer le même mot de passe",
                                       hintText: 'Entrer votre mot de passe',
                                     ),
-                                    obscureText: obsecureText,
+                                    obscureText: obSecureText,
                                   ),
                                 ),
                                 IconButton(
                                     onPressed: () {
                                       setState(() {
-                                        obsecureText = !obsecureText;
+                                        obSecureText = !obSecureText;
                                       });
                                     },
                                     icon: Icon(Icons.visibility_off))
                               ],
                             ),
                           ),
-                          Row(
-                            children: [
-                              Padding(
-                                  padding: EdgeInsets.fromLTRB(20, 10, 10, 0))
-                            ],
-                          ),
+                          Text('veuillez remplir tous les champs',
+                              style: TextStyle(
+                                  color: loginError
+                                      ? Colors.red
+                                      : Colors.grey.shade100)),
+                          Container(
+                              child: Text(errorSignUp!,
+                                  style: TextStyle(color: Colors.red))),
+
                           Padding(
                             padding: EdgeInsets.fromLTRB(20, 20, 20, 5),
                             child: Container(
@@ -613,30 +816,154 @@ class _LoginPageState extends State<LoginPage> {
                                 borderRadius: BorderRadius.circular(25),
                               ),
                               child: TextButton(
-                                onPressed: () {
-                                  Map<String, dynamic> userInfoMap = {
-                                    "name": _nameController.text,
-                                    "email": _newemailController.text,
-                                    "telephone": _telephoneController.text,
-                                    "password": _telephoneController.text,
-                                  };
+                                onPressed: () async {
+                                  if (_newemailController.text.isNotEmpty &&
+                                      _newpasswordController.text.length > 5 &&
+                                      _telephoneController.text.isNotEmpty &&
+                                      _nameController.text.isNotEmpty &&
+                                  _userNameController.text.isNotEmpty) {
+                                    print(isUnique);
+                                    await checkUsername();
+                                    print(isUnique);
+                                      if(isUnique == true){
+                                        print('isUnique');
+                                          if (_newpasswordController.text ==
+                                          _confirmPasswordController.text) {
+                                            print('isUnique,samepass,');
+                                            setState(() {
+                                              correctPassword = true;
+                                              loginError = false;
+                                              isloading = true;
+                                            });
 
-                                  context.read<AuthenticationService>().signUp(
-                                      email: _newemailController.text.trim(),
-                                      password:
-                                          _newpasswordController.text.trim());
+                                            if(groupValuePro == 0){
+                                              print('isUnique,samepass,pro');
+                                              getAdress().whenComplete((){
+                                                Map<String, dynamic> userInfoMap = {
+                                                  "nom": _nameController.text,
+                                                  "name": _userNameController.text,
+                                                  "email": _newemailController.text,
+                                                  "telephone": _telephoneController.text,
+                                                  "adress": adresss,
+                                                  "role": "pro",
+                                                  "pending": true,
+                                                  "password": _newpasswordController.text,
+                                                };
+                                                databaseService
+                                                    .uploadUserInfo(userInfoMap);
 
-                                  databaseService.uploadUserInfo(userInfoMap);
-                                  shp.saveUserName(_nameController.text);
-                                  shp.saveEmail(_newemailController.text);
-                                  shp.saveUserLoggedIn(true);
+                                                _nameController.clear();
+                                                _confirmPasswordController.clear();
+                                                _telephoneController.clear();
+                                                _userNameController.clear();
+                                                _newpasswordController.clear();
+                                                _newemailController.clear();
 
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) => HomePage()));
+                                                setState(() {
+                                                  errorSignUp = "";
+                                                  correctPassword = true;
+                                                  isloading = false;
+                                                });
+                                                showDialog(
+                                                    barrierDismissible: true,
+                                                    context: context,
+                                                    builder: (_){
+                                                      return AlertDialog(
+                                                        title: Text("votre candidature a été envoyée"),
+                                                      );
+                                                    }
+                                                );
+                                              });
+                                            }else if(groupValuePro == 1) {
+                                              getAdress.call().whenComplete((){
+                                                Map<String, dynamic> userInfoMap = {
+                                                  "nom": _nameController.text,
+                                                  "name": _userNameController.text,
+                                                  "email": _newemailController.text,
+                                                  "telephone": _telephoneController.text,
+                                                  "role": "user",
+                                                  "pending": false,
+                                                  "password": _newpasswordController.text,
+                                                  "adress": adresss,
+                                                };
+                                                context
+                                                    .read<AuthenticationService>()
+                                                    .signUp(
+                                                    email: _newemailController.text
+                                                        .trim(),
+                                                    password: _newpasswordController
+                                                        .text
+                                                        .trim())
+                                                    .then((value) {
+                                                  if (value == 'Signed up') {
+                                                    databaseService
+                                                        .uploadUserInfo(userInfoMap);
+                                                    shp.saveUserName(
+                                                        _nameController.text);
+                                                    shp.saveEmail(
+                                                        _newemailController.text);
+                                                    shp.saveUserLoggedIn(true);
+                                                    errorSignUp = "";
+
+
+                                                    Navigator.pushReplacement(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                            builder: (context) =>
+                                                                HomePage()));
+                                                    setState(() {
+                                                      isloading = false;
+                                                    });
+                                                  } else {
+                                                    if (value ==
+                                                        'The email address is already in use by another account.') {
+                                                      setState(() {
+                                                        isloading = false;
+                                                        errorSignUp =
+                                                        "L'adresse e-mail est déjà utilisée par un autre compte.";
+                                                      });
+                                                    } else {
+                                                      errorSignUp =
+                                                      "Quelque chose s'est mal passé. Veuillez réessayer.";
+                                                    }
+                                                  }
+                                                });
+                                              });
+                                              print('isUnique,samepass,no pro');
+                                              print("$adresss before adding");
+
+
+
+                                            }
+
+                                          } else {
+                                            print('isUnique,Nosamepass,');
+                                            setState(() {
+                                              correctPassword = false;
+                                              isloading = false;
+                                            });
+                                          }
+                                      }
+                                      else {
+                                        print('not isUnique');
+                                        setState(() {
+                                          isUnique = false;
+                                          isloading = false;
+
+                                        });
+                                      }
+
+                                  } else {
+                                    print('something wrong');
+                                    setState(() {
+                                      loginError = true;
+                                      correctPassword = false;
+                                      isloading = false;
+
+                                    });
+                                  }
                                 },
-                                child: Text('Connectez-vouz',
+                                child: Text('Connectez-vous',
                                     style: TextStyle(color: Colors.black)),
                                 style: ButtonStyle(
                                   backgroundColor:
@@ -787,4 +1114,46 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+  late QuerySnapshot query;
+  LocationClass locationClass = LocationClass();
+  Future checkUsername() async {
+    await databaseService.checkUserNameUnique(_userNameController.text).then((value){
+      setState(() {
+        query = value;
+      });
+
+    }).whenComplete((){
+      if(query.size == 0){
+        setState(() {
+          isUnique = true;
+        });
+      }else {
+        isUnique = false;
+      }
+    });
+  }
+  String adresss = "";
+  getAdress() async {
+    var smth = (await shp.getadress())!;
+    setState(() {
+      adresss = smth;
+    });
+    print("$adresss at get adresss");
+  }
+
 }
+class SearchInjector extends StatelessWidget {
+  final Widget child;
+
+  const SearchInjector({Key? key, required this.child}) : super(key: key);
+
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => LocationApi(),
+      child: child,
+    );
+  }
+}
+

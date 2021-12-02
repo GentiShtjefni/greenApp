@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:entre_cousins/loggedIn/ProfilePage.dart';
 import 'package:entre_cousins/tools/DatabaseService.dart';
 import 'package:entre_cousins/tools/constants.dart';
 import 'package:entre_cousins/tools/mainscreen.dart';
@@ -7,8 +8,8 @@ import 'package:flutter/material.dart';
 
 class Message extends StatefulWidget {
 
-  String chatRoomId;
-  String username;
+  final String chatRoomId;
+  final String username;
   Message(this.chatRoomId,this.username);
 
   @override
@@ -107,14 +108,14 @@ class _MessageState extends State<Message> {
                       radius: 25,
                     ),
                   ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(0, 10, 0, 10),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Text(widget.username),
-                        Text('online'),
-                      ],
+                  InkWell(
+                    onTap: (){
+                      Navigator.push(context, MaterialPageRoute(builder:
+                          (context)=> Profile(username: widget.username,)));
+                    },
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(0, 10, 0, 10),
+                      child: Text(widget.username),
                     ),
                   ),
                 ],
@@ -161,7 +162,7 @@ class _MessageState extends State<Message> {
 class MessageTile extends StatelessWidget {
   final String message;
   MessageTile(this.message, this.isSendByMe);
-  bool isSendByMe;
+  final bool isSendByMe;
 
   @override
   Widget build(BuildContext context) {

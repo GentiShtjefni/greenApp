@@ -19,33 +19,22 @@ class _MessagesSearchState extends State<MessagesSearch> {
   TextEditingController searchTextEditingController = new TextEditingController();
   DatabaseService databaseService = new DatabaseService();
 
-  dynamic data = null;
+  dynamic data;
   late QuerySnapshot querySnapshot;
 
   final Stream<QuerySnapshot> users =
-  FirebaseFirestore.instance.collection('users').snapshots();
+  FirebaseFirestore.instance.collection('users').where("pending", isEqualTo: false).snapshots();
 
   Future initiateSearch(String searchString) async {
     await FirebaseFirestore.instance
-        .collection('users')
-        .where('name', isEqualTo: searchString)
+        .collection('users').where("pending", isEqualTo: false)
+        .where('name', isGreaterThanOrEqualTo: searchString)
         .get().then((value){
           setState(() {
             data = value;
           });
     }
     );
-  }
-
-  Future<Widget> searchList() async {
-    if (data != null) {
-      return SearchTile(
-        userEmail: data.docs[0].get('email'),
-        userName: data.docs[0].get('name'),
-      );
-
-    }
-    else return CircularProgressIndicator();
   }
 
   @override
@@ -99,22 +88,35 @@ class _MessagesSearchState extends State<MessagesSearch> {
                 ],
               ),
             ),
-            FutureBuilder(
-              builder: (BuildContext context, index){
-                try{
-                  if(data != null){
-                    return SearchTile(
-                      userEmail: data.docs[0].get('email'),
-                      userName: data.docs[0].get('name'),
-                    );
+            Expanded(
+              child: FutureBuilder(
+                builder: (BuildContext context, index){
+                  try{
+                    if(data != null){
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: data.docs.length,
+                        itemBuilder: (BuildContext context, index){
+                          return Column(
+                            children: [
+                              SearchTile(
+                                userEmail: data.docs[index].get('email'),
+                                userName: data.docs[index].get('name'),
+                              ),
+                              Divider(),
+                            ],
+                          );
+                        },
+                      );
+                    }
+                    else return Container();
+                  }catch(e){
+                    if(e.toString() == 'RangeError (index): Invalid value: Valid value range is empty: 0'){
+                      return Text('User not found');
+                    }else return Text('something went wrong, please try again');
                   }
-                  else return Container();
-                }catch(e){
-                  if(e.toString() == 'RangeError (index): Invalid value: Valid value range is empty: 0'){
-                    return Text('User not found');
-                  }else return Text('something went wrong, please try again');
-                }
-                }
+                  }
+              ),
             )
 
           ],
@@ -124,8 +126,8 @@ class _MessagesSearchState extends State<MessagesSearch> {
   }
   getChatRoomId(String? a, String? b){
     List list = [a,b];
-    String Id = (list..sort()).join('_') ;
-    return Id;
+    String id = (list..sort()).join('_') ;
+    return id;
   }
   getUserInfo() async {
     var smth = await SharedPreference().getUserName();
@@ -166,7 +168,7 @@ class SearchTile extends StatelessWidget {
   final String userEmail;
 
   SearchTile({required this.userEmail, required this.userName});
-  var widget = _MessagesSearchState();
+  final widget = _MessagesSearchState();
 
   @override
   Widget build(BuildContext context) {
